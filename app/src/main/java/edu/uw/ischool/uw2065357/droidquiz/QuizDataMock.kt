@@ -1,7 +1,7 @@
 package edu.uw.ischool.uw2065357.droidquiz
 
 object QuizDataMock {
-    val quizDataList = listOf(
+    val quizDataList = mutableListOf(
         QuizData(
             "Math",
             listOf(
@@ -9,7 +9,8 @@ object QuizDataMock {
                 Question("What is 5 * 7?", listOf("30", "35", "42"), 2),
                 // Add more questions
             ),
-            "This is a Math Quiz!"
+            "This is a Math Quiz!",
+            ""
         ),
         QuizData(
             "Physics",
@@ -18,7 +19,8 @@ object QuizDataMock {
                 Question("What is the SI unit of force?", listOf("Newton", "Joule", "Watt"), 0),
                 // Add more questions
             ),
-            "This is a quiz to see if you are a physics guy"
+            "This is a quiz to see if you are a physics guy",
+            ""
         ),
         QuizData(
             "Marvel Super Heroes",
@@ -27,7 +29,8 @@ object QuizDataMock {
                 Question("What is the real name of Spider-Man?", listOf("Peter Parker", "Tony Stark", "Bruce Banner"), 0),
                 // Add more questions for Marvel Super Heroes
             ),
-            "Do you really know Marvel?"
+            "Do you really know Marvel?",
+            ""
         )
     )
 }

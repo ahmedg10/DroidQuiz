@@ -7,33 +7,36 @@ import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 
 
+
+
 class MainActivity : AppCompatActivity() {
+    private lateinit var topicRepository: QuizTopicRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Initialize the repository
+        topicRepository = MemoryQuizRepository()
 
         val listView = findViewById<ListView>(R.id.topicListView)
 
         val adapter = ArrayAdapter<String>(
             this,
             android.R.layout.simple_list_item_1,
-            QuizDataMock.quizDataList.map { it.quizTitle }
+            topicRepository.getAllTopics().map { it.quizTitle }
         )
 
         listView.adapter = adapter
 
         listView.setOnItemClickListener { _, _, position, _ ->
-            val selectedQuizData = QuizDataMock.quizDataList[position]
-            val jsonQuizData = selectedQuizData.toJson()
+            val selectedTopic = topicRepository.getAllTopics()[position]
 
             val intent = Intent(this, Overview::class.java)
-            intent.putExtra("quizData", jsonQuizData)
-            intent.putExtra("overview", selectedQuizData.quizOverview)
-            intent.putExtra("quizTitle", selectedQuizData.quizTitle)
+            intent.putExtra("quizTitle", selectedTopic.quizTitle)
+            // You can add other necessary data as extras if needed
 
             startActivity(intent)
-
         }
-
     }
 }
