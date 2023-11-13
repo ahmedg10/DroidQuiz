@@ -5,7 +5,8 @@ import com.google.gson.Gson
 data class QuizData(
     val quizTitle: String,
     val quizQuestions: List<Question>,
-    val quizOverview: String
+    val quizShortOverview: String,
+    val quizLongOverview: String
 )
 
 data class Question(

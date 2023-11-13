@@ -16,10 +16,12 @@ import edu.uw.ischool.uw2065357.droidquiz.QuizData
 import edu.uw.ischool.uw2065357.droidquiz.R
 
 class QuizActivity : AppCompatActivity() {
+    private lateinit var quizRepository: QuizTopicRepository
     private var quizData: QuizData? = null
     private var currentQuestionIndex = 0
     private var correctAnswers = 0
     private var selectedAnswer: Int = -1 // Initialize with an invalid value
+    private var currentTopicIndex = 0
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,23 +36,36 @@ class QuizActivity : AppCompatActivity() {
         correctAnswerNumTextView.text = "$correctAnswers out of $currentQuestionIndex correct!"
 
 
-        // Retrieve the quiz data from the intent
-        val jsonQuizData = intent.getStringExtra("quizData")
-        quizData = jsonQuizData?.toQuizData()
+        quizRepository = MemoryQuizRepository()
 
-        // Load the first question
-        loadQuestion()
+        // Retrieve the selected topic identifier (e.g., quiz title) from the intent
+        val selectedTopicTitle = intent.getStringExtra("selectedTopic")
 
+        // Find the index of the selected topic in the repository
+        val selectedTopicIndex = quizRepository.getAllTopics().indexOfFirst { it.quizTitle == selectedTopicTitle }
 
-        checkRadioButtonSelection()
+        if (selectedTopicIndex != -1) {
+            currentTopicIndex = selectedTopicIndex
+            quizData = quizRepository.getAllTopics()[currentTopicIndex]
+            loadQuestion()
 
-        nextButton.setOnClickListener{
-            navigateToNextQuestion()
+            checkRadioButtonSelection()
+
+            nextButton.setOnClickListener{
+                navigateToNextQuestion()
+            }
+
+            backButton.setOnClickListener{
+                handleBackButton()
+            }
+
+            // ... rest of your existing code
+        } else {
+            // Handle the case where the selected topic is not found
+            showToast("Selected topic not found!")
+            finish() // Finish the activity or navigate to another appropriate screen
         }
 
-        backButton.setOnClickListener{
-            handleBackButton()
-        }
 
     }
 
