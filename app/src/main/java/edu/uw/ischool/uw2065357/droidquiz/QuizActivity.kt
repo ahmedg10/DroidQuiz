@@ -36,7 +36,7 @@ class QuizActivity : AppCompatActivity() {
         correctAnswerNumTextView.text = "$correctAnswers out of $currentQuestionIndex correct!"
 
 
-        quizRepository = MemoryQuizRepository()
+        quizRepository = MemoryQuizRepository(this)
 
         // Retrieve the selected topic identifier (e.g., quiz title) from the intent
         val selectedTopicTitle = intent.getStringExtra("selectedTopic")

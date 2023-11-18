@@ -17,7 +17,7 @@ class Overview : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_overview)
 
-        topicRepository = MemoryQuizRepository()
+        topicRepository = MemoryQuizRepository(this)
 
         val selectedTopicTitle = intent.getStringExtra("quizTitle")
 

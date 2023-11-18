@@ -17,7 +17,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         // Initialize the repository
-        topicRepository = MemoryQuizRepository()
+        topicRepository = MemoryQuizRepository(this)
 
         val listView = findViewById<ListView>(R.id.topicListView)
 
