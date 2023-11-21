@@ -30,13 +30,10 @@ class Preferences : AppCompatActivity() {
         prefTimeEditText = findViewById(R.id.InsertPrefTime)
         saveButton = findViewById(R.id.savePreferenceButton)
 
-        // Get SharedPreferences instance and Editor
-        val sharedPrefs = getSharedPreferences("AppPreference", Context.MODE_PRIVATE)
-        val editor = sharedPrefs.edit()
-
-        // Retrieve saved preferences
-        val savedUrl = sharedPrefs.getString("url", "http://tednewardsandbox.site44.com/questions.json")
-        val savedMinutes = sharedPrefs.getInt("minutes", 0)
+        // Retrieve saved preferences using AppPreferences
+        val appPreferences = AppPreferences.getInstance()
+        val savedUrl = appPreferences.getUrl()
+        val savedMinutes = appPreferences.getMinutes()
 
         // Set EditText values
         prefUrlEditText.setText(savedUrl)
@@ -44,10 +41,9 @@ class Preferences : AppCompatActivity() {
 
         // Save button click listener
         saveButton.setOnClickListener {
-            // Update SharedPreferences with new values
-            editor.putString("url", prefUrlEditText.text.toString())
-            editor.putInt("minutes", prefTimeEditText.text.toString().toInt())
-            editor.apply()
+            // Update AppPreferences with new values
+            appPreferences.setUrl(prefUrlEditText.text.toString())
+            appPreferences.setMinutes(prefTimeEditText.text.toString().toInt())
 
             // Start MainActivity
             val intent = Intent(this, MainActivity::class.java)
@@ -55,6 +51,7 @@ class Preferences : AppCompatActivity() {
         }
     }
 }
+
 
 
 

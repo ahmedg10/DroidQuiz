@@ -1,73 +1,118 @@
 package edu.uw.ischool.uw2065357.droidquiz
 
 import android.app.Activity
+import android.content.ContentValues.TAG
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import org.json.JSONException
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileNotFoundException
+import java.io.IOException
+import java.io.InputStream
 import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import org.json.JSONArray
 
 class MemoryQuizRepository(private val context: Context) : QuizTopicRepository {
     private val topics: MutableList<QuizData> = mutableListOf()
-    private val fileName = "questions.json"
 
     init {
-        readJsonFile()
+        Log.d("TopicRepoDebug", "Intalizing Topic Repo")
+
+        val appPreferences = AppPreferences.getInstance()
+        val savedUrl = appPreferences.getUrl()
+        val savedMinutes = appPreferences.getMinutes()
+
+        pullJsonFromUrl(savedUrl)
+
+        Log.d("Checking if Topics Populated" , "${getAllTopics()}")
+
+
     }
 
-    private fun readJsonFile() {
-            val file = File(context.filesDir, "questions_copy.json")
 
-            logDebug("Reading file", file.absolutePath)
+    private fun pullJsonFromUrl(url: String) {
+        val executor: Executor = Executors.newSingleThreadExecutor()
+        executor.execute {
+            try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                val inputStream: InputStream = connection.inputStream
+                val jsonString = inputStream.bufferedReader().use { it.readText() }
 
-            val inputStream = FileInputStream(file)
-            val reader = BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8))
+                try {
+                    topics.clear()
+                    readJson(jsonString)
+                    } catch (e: JSONException) {
+                        Log.e(TAG, "JSON invalid: $e")
+                    }
 
-            val stringBuilder = StringBuilder()
-            var line: String?
-
-            while (reader.readLine().also { line = it } != null) {
-                stringBuilder.append(line)
+                }catch (e: IOException) {
+                // Handle IOException
+                // For example:
+                Log.e(TAG, "Error reading from the URL: $e")
             }
-
-            inputStream.close()
-
-            val jsonArray = Gson().fromJson<List<Map<String, Any>>>(stringBuilder.toString(), object : TypeToken<List<Map<String, Any>>>() {}.type)
-
-            for ((index, jsonObject) in jsonArray.withIndex()) {
-                logDebug("Processing JSON object $index", Gson().toJson(jsonObject))
-
-                val title = jsonObject["title"] as String
-                val questionsArray = jsonObject["questions"] as List<Map<String, Any>>
-                val questions = mutableListOf<Question>()
-
-                for ((qIndex, questionObject) in questionsArray.withIndex()) {
-                    logDebug("Processing question $qIndex for quiz $index", Gson().toJson(questionObject))
-
-                    val questionText = questionObject["text"] as String
-                    val answersArray = questionObject["answers"] as List<String>
-                    val correctAnswer = (questionObject["answer"] as String).toInt() // Convert to Int
-
-                    val question = Question(questionText, answersArray, correctAnswer)
-                    questions.add(question)
-                }
-
-                val shortOverview = jsonObject["desc"] as String
-                val longOverview = "" // You might want to modify this based on your data
-
-                val quizData = QuizData(title, questions, shortOverview, longOverview)
-                topics.add(quizData)
-
-                logDebug("Quiz $index processed", Gson().toJson(quizData))
-            }
-
         }
+    }
+
+    private fun readJson(json: String) {
+        val executor: Executor = Executors.newSingleThreadExecutor()
+        executor.execute {
+            try {
+                val jsonArray = JSONArray(json)
+
+                for (index in 0 until jsonArray.length()) {
+                    val jsonObject = jsonArray.getJSONObject(index)
+
+                    val title = jsonObject.getString("title")
+                    val shortOverview = jsonObject.getString("desc")
+
+                    val questionsArray = jsonObject.getJSONArray("questions")
+                    val questions = mutableListOf<Question>()
+
+                    for (qIndex in 0 until questionsArray.length()) {
+                        val questionObject = questionsArray.getJSONObject(qIndex)
+                        val text = questionObject.getString("text")
+                        val answersArray = questionObject.getJSONArray("answers")
+                        val answers = mutableListOf<String>()
+
+                        for (aIndex in 0 until answersArray.length()) {
+                            answers.add(answersArray.getString(aIndex))
+                        }
+
+                        val correctAnswer = questionObject.getInt("answer")
+
+                        val question = Question(text, answers, correctAnswer)
+                        questions.add(question)
+                    }
+
+                    val longOverview = "" // You might want to modify this based on your data
+
+                    val quizData = QuizData(title, questions, shortOverview, longOverview)
+                    topics.add(quizData)
+
+                    // Inside your pullJsonFromUrl function, after updating topics
+                    val quizDataList = topics.toList()  // Create a copy to avoid concurrent modification
+                    Log.d("TopicsAfterPull", "Topics after pull: $quizDataList")
+
+                    // Log the processing steps
+                    Log.d("QuizProcessing", "Quiz $index processed: $quizData")
+                }
+            } catch (e: JSONException) {
+                // Log the error if JSON parsing fails
+                Log.e("JsonParsingError", "Error parsing JSON: ${e.message}")
+            }
+        }
+    }
 
 
     override fun getAllTopics(): List<QuizData> {
@@ -92,13 +137,7 @@ class MemoryQuizRepository(private val context: Context) : QuizTopicRepository {
     override fun deleteTopic(topicTitle: String) {
         topics.removeIf { it.quizTitle == topicTitle }
     }
-
-    private fun logDebug(message: String, filePath: String) {
-        Log.d("FileDebug", "$message: $filePath")
-    }
-
-    private fun logError(message: String, file: File, exception: Exception? = null) {
-        Log.e("FileError", "$message: ${file.absolutePath}", exception)
-    }
-
 }
+
+
+

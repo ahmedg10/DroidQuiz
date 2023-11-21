@@ -5,6 +5,7 @@ import android.util.Log
 class QuizApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppPreferences.initialize(applicationContext)
         Log.d("QuizApp", "Quiz App is being loaded and run")
     }
 }

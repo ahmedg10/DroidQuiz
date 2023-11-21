@@ -1,7 +1,11 @@
 package edu.uw.ischool.uw2065357.droidquiz
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -10,8 +14,8 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
 import androidx.appcompat.app.AppCompatActivity
-
-
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
@@ -30,7 +34,12 @@ class MainActivity : AppCompatActivity() {
         toolbarTitle.text = "QuizDroid" // Set your custom title
 
         // Initialize the repository
-        topicRepository = MemoryQuizRepository(this)
+        val executor: Executor = Executors.newSingleThreadExecutor()
+        executor.execute {
+            topicRepository = MemoryQuizRepository(this)
+        }
+
+        loadTopicsFromURL(this)
 
         Log.d("Debug Activty", "${topicRepository.getAllTopics()}")
 
@@ -41,6 +50,8 @@ class MainActivity : AppCompatActivity() {
             android.R.layout.simple_list_item_1,
             topicRepository.getAllTopics().map { it.quizTitle }
         )
+
+//        Log.d("AdapterData", "Adapter data: ${adapter.getItem(0)}, ${adapter.getItem(1)}, ...")
 
         listView.adapter = adapter
 
@@ -56,6 +67,7 @@ class MainActivity : AppCompatActivity() {
 
 
     }
+
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.preference_menu, menu)
@@ -73,5 +85,27 @@ class MainActivity : AppCompatActivity() {
 
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun loadTopicsFromURL(context:Context) {
+        val appPreferences = AppPreferences.getInstance()
+        val downloadMinutes = appPreferences.getMinutes()
+        // Check if the download service is already running
+        // If not, start the download service
+        val intent = Intent(this, DownloadService::class.java)
+        DownloadService.enqueueWork(this, intent)
+
+        // Set up AlarmManager for periodic downloads
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pendingIntent =
+            PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+
+            val triggerTime = SystemClock.elapsedRealtime() + downloadMinutes * 60 * 1000
+            alarmManager.setRepeating(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                triggerTime,
+                (downloadMinutes * 60 * 1000).toLong(),
+                pendingIntent
+            )
     }
 }
