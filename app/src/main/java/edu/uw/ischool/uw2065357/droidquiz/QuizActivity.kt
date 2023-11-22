@@ -3,6 +3,7 @@ package edu.uw.ischool.uw2065357.droidquiz
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.RadioButton
@@ -28,9 +29,9 @@ class QuizActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quiz)
         val nextButton = findViewById<Button>(R.id.nextButton)
+        val backButton = findViewById<Button>(R.id.backButton)
         val submitButton = findViewById<Button>(R.id.submitButton)
         submitButton.visibility = View.INVISIBLE
-        val backButton = findViewById<Button>(R.id.backButton)
         val correctAnswerNumTextView = findViewById<TextView>(R.id.num_correct)
 
         correctAnswerNumTextView.text = "$correctAnswers out of $currentQuestionIndex correct!"
@@ -121,25 +122,31 @@ class QuizActivity : AppCompatActivity() {
     }
 
 
-    fun handleRadioButtonClick(int: Int){
-        this.selectedAnswer = selectedAnswer
+    fun handleRadioButtonClick(index: Int) {
+        selectedAnswer = index // Update the selected answer with the index of the clicked radio button
     }
 
     private fun showAnswer(selectedAnswer: Int) {
         val question = quizData?.quizQuestions?.get(currentQuestionIndex)
 
-        if (question?.correctAnswer == selectedAnswer) {
-            // The selected answer is correct
-            showToast("Correct answer!")
-            correctAnswers++
-        } else {
-            // The selected answer is incorrect
-            showToast("Incorrect answer!")
-        }
+        if (question != null) {
+            Log.d("QuizActivity", "Correct Answer: ${question.correctAnswer}, Selected Answer: $selectedAnswer")
 
-        // Update the score display
-        val correctAnswerNumTextView = findViewById<TextView>(R.id.num_correct)
-        correctAnswerNumTextView.text = "$correctAnswers out of ${currentQuestionIndex + 1} correct!"
+            if (question.correctAnswer == selectedAnswer) {
+                // The selected answer is correct
+                showToast("Correct answer!")
+                correctAnswers++
+            } else {
+                // The selected answer is incorrect
+                showToast("Incorrect answer!")
+            }
+
+            // Update the score display
+            val correctAnswerNumTextView = findViewById<TextView>(R.id.num_correct)
+            correctAnswerNumTextView.text = "$correctAnswers out of ${currentQuestionIndex + 1} correct!"
+        } else {
+            Log.e("QuizActivity", "Question is null at index: $currentQuestionIndex")
+        }
     }
 
     private fun showToast(message: String) {
@@ -174,13 +181,18 @@ class QuizActivity : AppCompatActivity() {
         val selectedRadioButton = findViewById<RadioButton>(radioGroup.checkedRadioButtonId)
 
         val correctRadio = radioGroup.getChildAt(correctAnswer ?: -1) as RadioButton
-        val selectedRadio = radioGroup.getChildAt(radioGroup.indexOfChild(selectedRadioButton)) as RadioButton
+
+        // Clear backgrounds of all radio buttons
+        for (i in 0 until radioGroup.childCount) {
+            val radioButton = radioGroup.getChildAt(i) as RadioButton
+            radioButton.setBackgroundResource(android.R.color.transparent)
+        }
 
         correctRadio.setBackgroundResource(R.drawable.correct_background)
 
-        if (correctAnswer != null && selectedRadio.id != correctRadio.id) {
+        if (correctAnswer != null && selectedRadioButton?.id != correctRadio.id) {
             // Selected answer is incorrect
-            selectedRadio.setBackgroundResource(R.drawable.incorrect_background)
+            selectedRadioButton?.setBackgroundResource(R.drawable.incorrect_background)
         }
     }
 
@@ -194,6 +206,8 @@ class QuizActivity : AppCompatActivity() {
             radioGroup.setOnCheckedChangeListener { group, checkedId ->
                 if (checkedId != -1) {
                     submitButton.visibility = View.VISIBLE
+                    // Remove this line: submitButton.visibility = View.VISIBLE
+                    Log.d("QuizActivity", "Radio button selection changed")
                 }
             }
 
@@ -203,11 +217,17 @@ class QuizActivity : AppCompatActivity() {
                 if (selectedRadioButton != null) {
                     highlightAnswers()
                     showAnswer(indexOfSelectedAnswer)
+
+                    // Add this line to explicitly set submitButton visibility
+                    submitButton.visibility = View.VISIBLE
                 } else {
                     // Display an error message or do nothing if no radio button is selected
+                    Log.d("QuizActivity", "No radio button selected")
                 }
             }
         }
+
+
 
 }
 
