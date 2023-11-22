@@ -164,8 +164,16 @@ class QuizActivity : AppCompatActivity() {
                 val radioButton = radioGroup.getChildAt(i) as RadioButton
                 radioButton.setBackgroundResource(android.R.color.transparent)
             }
+
             currentQuestionIndex++
-            loadQuestion()
+            // Check if it's the last question
+            if (currentQuestionIndex == quizData?.quizQuestions?.size) {
+                // Navigate to the main activity
+                navigateToMainActivity()
+            } else {
+                // Load the next question
+                loadQuestion()
+            }
         }
     }
 
