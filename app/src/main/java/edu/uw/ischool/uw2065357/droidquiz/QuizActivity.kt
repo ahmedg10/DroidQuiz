@@ -16,7 +16,7 @@ import edu.uw.ischool.uw2065357.droidquiz.QuizData
 import edu.uw.ischool.uw2065357.droidquiz.R
 
 class QuizActivity : AppCompatActivity() {
-    private lateinit var quizRepository: QuizTopicRepository
+    private lateinit var quizRepository: MemoryQuizRepository
     private var quizData: QuizData? = null
     private var currentQuestionIndex = 0
     private var correctAnswers = 0
@@ -36,7 +36,8 @@ class QuizActivity : AppCompatActivity() {
         correctAnswerNumTextView.text = "$correctAnswers out of $currentQuestionIndex correct!"
 
 
-        quizRepository = MemoryQuizRepository(this)
+        val quizApp = application as QuizApp
+        quizRepository = quizApp.topicRepository
 
         // Retrieve the selected topic identifier (e.g., quiz title) from the intent
         val selectedTopicTitle = intent.getStringExtra("selectedTopic")

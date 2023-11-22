@@ -1,11 +1,14 @@
 package edu.uw.ischool.uw2065357.droidquiz
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.JobIntentService
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -33,14 +36,17 @@ class DownloadService : JobIntentService() {
 
     override fun onHandleWork(intent: Intent) {
         // Check if the device is connected to the internet
-        if (isConnectedToInternet()) {
+        if (isConnectedToInternet(this)) {
             // Retrieve URL from preferences
             val appPreferences = AppPreferences.getInstance()
             val url = appPreferences.getUrl()
 
+
             try {
                 // Attempt to download JSON from the specified URL
                 val json = downloadJsonFromUrl(url)
+
+                saveToFile(json)
 
                 // Broadcast the downloaded JSON
                 val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE)
@@ -80,18 +86,33 @@ class DownloadService : JobIntentService() {
         }
     }
 
-    private fun isConnectedToInternet(): Boolean {
-        return try {
-            val url = URL(AppPreferences.getInstance().getUrl())
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 3000
-            connection.connect()
-
-            val responseCode = connection.responseCode
-            responseCode == HttpURLConnection.HTTP_OK
-
+    private fun saveToFile(jsonString: String) {
+        try {
+            val fileOutputStream = openFileOutput("questions.json", Context.MODE_PRIVATE)
+            fileOutputStream.write(jsonString.toByteArray())
+            fileOutputStream.close()
         } catch (e: Exception) {
-            false
+            // Broadcast a failure message
+            val failureIntent = Intent(ACTION_DOWNLOAD_FAILURE)
+            failureIntent.putExtra(EXTRA_FAILURE_MESSAGE, "Download failed: ${e.message}")
+            sendBroadcast(failureIntent)
         }
+    }
+
+    private fun isConnectedToInternet(context: Context): Boolean {
+            var result = false
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.run {
+                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
+                    result = when {
+                        hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                        hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                        hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                        else -> false
+                    }
+                }
+            }
+
+            return result
     }
 }

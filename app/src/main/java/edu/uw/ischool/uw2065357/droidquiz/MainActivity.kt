@@ -19,12 +19,22 @@ import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var topicRepository: QuizTopicRepository
+    private lateinit var topicRepository: MemoryQuizRepository
     private lateinit var mainToolBar: Toolbar
+    private lateinit var quizApp: QuizApp
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        quizApp = application as QuizApp
+        topicRepository = quizApp.topicRepository
+        topicRepository.setDataLoadedListener(object : DataLoadedListener {
+            override fun onDataLoaded() {
+                updateUI()
+            }
+        })
 
         mainToolBar = findViewById(R.id.maintoolbar)
         val toolbarTitle = findViewById<TextView>(R.id.toolbar_title)
@@ -36,36 +46,34 @@ class MainActivity : AppCompatActivity() {
         // Initialize the repository
         val executor: Executor = Executors.newSingleThreadExecutor()
         executor.execute {
-            topicRepository = MemoryQuizRepository(this)
+            topicRepository.pullJsonFromUrl(AppPreferences.getInstance().getUrl())
         }
 
-        loadTopicsFromURL(this)
+        val downloadMinutes = AppPreferences.getInstance().getMinutes()
 
-        Log.d("Debug Activty", "${topicRepository.getAllTopics()}")
+        download(downloadMinutes)
 
-        val listView = findViewById<ListView>(R.id.topicListView)
+    }
 
-        val adapter = ArrayAdapter<String>(
-            this,
-            android.R.layout.simple_list_item_1,
-            topicRepository.getAllTopics().map { it.quizTitle }
-        )
+    private fun updateUI() {
+        runOnUiThread {
+            // Update the ListView adapter with new data
+            val listView = findViewById<ListView>(R.id.topicListView)
+            val adapter = ArrayAdapter<String>(
+                this,
+                android.R.layout.simple_list_item_1,
+                topicRepository.getAllTopics().map { it.quizTitle }
+            )
+            listView.adapter = adapter
 
-//        Log.d("AdapterData", "Adapter data: ${adapter.getItem(0)}, ${adapter.getItem(1)}, ...")
-
-        listView.adapter = adapter
-
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val selectedTopic = topicRepository.getAllTopics()[position]
-
-            val intent = Intent(this, Overview::class.java)
-            intent.putExtra("quizTitle", selectedTopic.quizTitle)
-            // You can add other necessary data as extras if needed
-
-            startActivity(intent)
+            // Set the OnItemClickListener for the ListView
+            listView.setOnItemClickListener { _, _, position, _ ->
+                val selectedTopic = topicRepository.getAllTopics()[position]
+                val intent = Intent(this, Overview::class.java)
+                intent.putExtra("quizTitle", selectedTopic.quizTitle)
+                startActivity(intent)
+            }
         }
-
-
     }
 
 
@@ -87,11 +95,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadTopicsFromURL(context:Context) {
-        val appPreferences = AppPreferences.getInstance()
-        val downloadMinutes = appPreferences.getMinutes()
-        // Check if the download service is already running
-        // If not, start the download service
+     fun download(downloadMinutes : Int) {
         val intent = Intent(this, DownloadService::class.java)
         DownloadService.enqueueWork(this, intent)
 

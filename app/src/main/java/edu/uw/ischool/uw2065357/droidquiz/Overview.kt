@@ -9,15 +9,16 @@ import android.widget.Toast
 
 
 class Overview : AppCompatActivity() {
-    private lateinit var topicRepository: QuizTopicRepository
+    private lateinit var topicRepository: MemoryQuizRepository
     private lateinit var selectedTopic: QuizData
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_overview)
 
-        topicRepository = MemoryQuizRepository(this)
+        // Get the MemoryQuizRepository instance from QuizApp
+        val quizApp = application as QuizApp
+        topicRepository = quizApp.topicRepository
 
         val selectedTopicTitle = intent.getStringExtra("quizTitle")
 

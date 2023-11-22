@@ -6,4 +6,6 @@ interface QuizTopicRepository {
     fun addTopic(topic: QuizData)
     fun updateTopic(topic: QuizData)
     fun deleteTopic(topicId: String)
+    fun pullJsonFromUrl(url: String)
+
 }

@@ -3,6 +3,8 @@ package edu.uw.ischool.uw2065357.droidquiz
 import android.app.Activity
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -23,25 +25,31 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import org.json.JSONArray
 
-class MemoryQuizRepository(private val context: Context) : QuizTopicRepository {
-    private val topics: MutableList<QuizData> = mutableListOf()
+interface DataLoadedListener {
+    fun onDataLoaded()
+}
+class MemoryQuizRepository(context: Context) : QuizTopicRepository {
+    private var topics: MutableList<QuizData> = mutableListOf()
+    private var dataLoadedListener: DataLoadedListener? = null
 
     init {
         Log.d("TopicRepoDebug", "Intalizing Topic Repo")
-
+        AppPreferences.initialize(context)
         val appPreferences = AppPreferences.getInstance()
         val savedUrl = appPreferences.getUrl()
-        val savedMinutes = appPreferences.getMinutes()
 
         pullJsonFromUrl(savedUrl)
 
-        Log.d("Checking if Topics Populated" , "${getAllTopics()}")
+        Log.d("Topics Populated" , "${getAllTopics()}")
 
 
     }
 
+    fun setDataLoadedListener(listener: DataLoadedListener) {
+        this.dataLoadedListener = listener
+    }
 
-    private fun pullJsonFromUrl(url: String) {
+    override fun pullJsonFromUrl(url: String) {
         val executor: Executor = Executors.newSingleThreadExecutor()
         executor.execute {
             try {
@@ -65,54 +73,89 @@ class MemoryQuizRepository(private val context: Context) : QuizTopicRepository {
     }
 
     private fun readJson(json: String) {
-        val executor: Executor = Executors.newSingleThreadExecutor()
-        executor.execute {
-            try {
-                val jsonArray = JSONArray(json)
+        val updateList = mutableListOf<QuizData>()
+        val updateNameList = mutableListOf<String>()
 
-                for (index in 0 until jsonArray.length()) {
-                    val jsonObject = jsonArray.getJSONObject(index)
+        try {
+            Log.d("JsonParsing", "Start parsing JSON: $json")
 
-                    val title = jsonObject.getString("title")
-                    val shortOverview = jsonObject.getString("desc")
+            val jsonArray = JSONArray(json)
+            Log.d("JsonParsing", "JSON Array length: ${jsonArray.length()}")
 
-                    val questionsArray = jsonObject.getJSONArray("questions")
-                    val questions = mutableListOf<Question>()
+            for (i in 0 until jsonArray.length()) {
+                val topicObj = jsonArray.getJSONObject(i)
 
-                    for (qIndex in 0 until questionsArray.length()) {
-                        val questionObject = questionsArray.getJSONObject(qIndex)
-                        val text = questionObject.getString("text")
-                        val answersArray = questionObject.getJSONArray("answers")
-                        val answers = mutableListOf<String>()
+                Log.d("JsonParsing", "Processing JSON object at index $i: $topicObj")
 
-                        for (aIndex in 0 until answersArray.length()) {
-                            answers.add(answersArray.getString(aIndex))
-                        }
+                val quizTitle = topicObj.getString("title")
+                val quizShortOverview = topicObj.getString("desc")
+                val quizLongOverview = "" // You can modify this based on your data structure
 
-                        val correctAnswer = questionObject.getInt("answer")
+                Log.d("JsonParsing", "Quiz Title: $quizTitle")
+                Log.d("JsonParsing", "Short Overview: $quizShortOverview")
+                Log.d("JsonParsing", "Long Overview: $quizLongOverview")
 
-                        val question = Question(text, answers, correctAnswer)
-                        questions.add(question)
+                val questionsArray = topicObj.getJSONArray("questions")
+                val questions = mutableListOf<Question>()
+
+                Log.d("JsonParsing", "Questions Array length: ${questionsArray.length()}")
+
+                for (j in 0 until questionsArray.length()) {
+                    val questionObject = questionsArray.getJSONObject(j)
+
+                    Log.d("JsonParsing", "Processing question at index $j: $questionObject")
+
+                    val text = questionObject.getString("text")
+                    val answersArray = questionObject.getJSONArray("answers")
+                    val options = mutableListOf<String>()
+
+                    Log.d("JsonParsing", "Question Text: $text")
+
+                    Log.d("JsonParsing", "Answers Array length: ${answersArray.length()}")
+
+                    for (k in 0 until answersArray.length()) {
+                        val answer = answersArray.getString(k)
+                        Log.d("JsonParsing", "Answer at index $k: $answer")
+                        options.add(answer)
                     }
 
-                    val longOverview = "" // You might want to modify this based on your data
+                    val correctAnswer = questionObject.getInt("answer") - 1 // Assuming the answer index is 1-based
 
-                    val quizData = QuizData(title, questions, shortOverview, longOverview)
-                    topics.add(quizData)
+                    Log.d("JsonParsing", "Correct Answer Index: $correctAnswer")
 
-                    // Inside your pullJsonFromUrl function, after updating topics
-                    val quizDataList = topics.toList()  // Create a copy to avoid concurrent modification
-                    Log.d("TopicsAfterPull", "Topics after pull: $quizDataList")
+                    val question = Question(text, options, correctAnswer)
+                    questions.add(question)
 
-                    // Log the processing steps
-                    Log.d("QuizProcessing", "Quiz $index processed: $quizData")
+                    Log.d("JsonParsing", "Question processed: $question")
                 }
-            } catch (e: JSONException) {
-                // Log the error if JSON parsing fails
-                Log.e("JsonParsingError", "Error parsing JSON: ${e.message}")
+
+                updateNameList.add(quizTitle)
+
+                val quizData = QuizData(quizTitle, questions, quizShortOverview, quizLongOverview)
+                updateList.add(quizData)
+
+                Log.d("JsonParsing", "Quiz Data processed: $quizData")
             }
+        } catch (e: JSONException) {
+            // Log the error if JSON parsing fails
+            Log.e("JsonParsingError", "Error parsing JSON: ${e.message}")
         }
+
+        // After parsing and updating the topics list
+        Handler(Looper.getMainLooper()).post {
+            topics = updateList
+            dataLoadedListener?.onDataLoaded()
+            Log.d("Topics Populated", "${getAllTopics()}")
+        }
+        Log.d("JsonParsing", "Update List ${updateList}")
+
+        Log.d("JsonParsing"," The Topics: ${topics}")
+
+        Log.d("JsonParsing", "End parsing JSON. Total Quiz Data processed: ${topics.size}")
     }
+
+
+
 
 
     override fun getAllTopics(): List<QuizData> {

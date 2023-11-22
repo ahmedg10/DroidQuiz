@@ -3,6 +3,11 @@ import android.app.Application
 import android.util.Log
 
 class QuizApp : Application() {
+    val topicRepository: MemoryQuizRepository by lazy {
+        MemoryQuizRepository(this)
+    }
+
+
     override fun onCreate() {
         super.onCreate()
         AppPreferences.initialize(applicationContext)
