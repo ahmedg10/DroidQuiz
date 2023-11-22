@@ -1,12 +1,18 @@
 package edu.uw.ischool.uw2065357.droidquiz
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.JobIntentService
+import androidx.core.app.NotificationCompat
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -52,6 +58,8 @@ class DownloadService : JobIntentService() {
                 val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE)
                 broadcastIntent.putExtra(EXTRA_JSON_DATA, json)
                 sendBroadcast(broadcastIntent)
+                sendNotification("Download Completed", "JSON data has been downloaded successfully")
+
 
             } catch (e: IOException) {
                 // Handle download failure
@@ -60,6 +68,7 @@ class DownloadService : JobIntentService() {
                 // Broadcast a failure message
                 val failureIntent = Intent(ACTION_DOWNLOAD_FAILURE)
                 failureIntent.putExtra(EXTRA_FAILURE_MESSAGE, "Download failed: ${e.message}")
+                sendNotification("Download Failed", "JSON data download has failed: ${e.message}")
                 sendBroadcast(failureIntent)
             }
         } else {
@@ -69,6 +78,7 @@ class DownloadService : JobIntentService() {
             // Broadcast a no internet message
             val noInternetIntent = Intent(ACTION_DOWNLOAD_FAILURE)
             noInternetIntent.putExtra(EXTRA_FAILURE_MESSAGE, "No internet connection")
+            sendNotification("No Internet Connection", "Please check your internet connection and try again.")
             sendBroadcast(noInternetIntent)
         }
     }
@@ -95,24 +105,58 @@ class DownloadService : JobIntentService() {
             // Broadcast a failure message
             val failureIntent = Intent(ACTION_DOWNLOAD_FAILURE)
             failureIntent.putExtra(EXTRA_FAILURE_MESSAGE, "Download failed: ${e.message}")
+            sendNotification("Download Failed", "JSON data download has failed: ${e.message}")
             sendBroadcast(failureIntent)
+
         }
     }
 
+    private fun sendNotification(title: String, message: String) {
+        val channelId = "download_channel_id" // Use the same channel ID as defined in QuizApp
+
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                NotificationChannel(
+                    channelId,
+                    "Download Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification: Notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(1, notification) // You can use a unique notification ID
+    }
+
     private fun isConnectedToInternet(context: Context): Boolean {
-            var result = false
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.run {
-                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
-                    result = when {
-                        hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-                        hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-                        hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-                        else -> false
-                    }
+        var result = false
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        cm.run {
+            cm.getNetworkCapabilities(cm.activeNetwork)?.run {
+                result = when {
+                    hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                    hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                    hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                    else -> false
                 }
             }
+        }
 
-            return result
+        return result
     }
 }
